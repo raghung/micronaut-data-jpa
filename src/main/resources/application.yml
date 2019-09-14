@@ -1,0 +1,19 @@
+micronaut:
+  application:
+    name: micronaut-data-jpa
+---
+datasources:
+  default:
+    url: "jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3306}/jdbc_hikari"
+    username: ${JDBC_USER:root}
+    password: ${JDBC_PASSWORD:root}
+    driverClassName: ${JDBC_DRIVER:com.mysql.cj.jdbc.Driver}
+jpa:
+  default:
+    packages-to-scan:
+      - 'com.test'
+    properties:
+      hibernate:
+        hbm2ddl:
+          auto: update
+        show_sql: true
