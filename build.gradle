@@ -22,6 +22,7 @@ configurations {
 dependencies {
     annotationProcessor "io.micronaut.data:micronaut-data-processor:$micronautDataVersion"
     compile "io.micronaut.data:micronaut-data-hibernate-jpa:$micronautDataVersion"
+    compile "io.micronaut.configuration:micronaut-jdbc-hikari"
     runtime "mysql:mysql-connector-java:8.0.15"
     
     compileOnly platform("io.micronaut:micronaut-bom:$micronautVersion")
