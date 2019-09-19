@@ -4,6 +4,10 @@ import groovy.json.JsonOutput
 import groovy.json.JsonSlurper
 import groovy.transform.CompileStatic
 import groovy.util.logging.Slf4j
+import io.micronaut.data.model.Page
+import io.micronaut.data.model.Pageable
+import io.micronaut.data.model.Sort
+import io.micronaut.http.annotation.Body
 import io.micronaut.http.annotation.Controller
 import io.micronaut.http.annotation.Get
 import io.micronaut.http.annotation.Post
@@ -15,6 +19,7 @@ import org.locationtech.jts.io.ParseException
 import org.locationtech.jts.io.WKTReader
 import org.locationtech.jts.util.GeometricShapeFactory
 
+import javax.annotation.Nullable
 import javax.inject.Inject
 
 @CompileStatic
@@ -33,13 +38,39 @@ class BookController {
         bookRepository.findAllByTitle(title)
     }
 
-    @Get("/list")
-    List<Book> list() {
-        bookRepository.findAll().asList()
+    @Post("/pageable")
+    Page<Book> findAll(@Body Pageable pageable) {
+       /* {
+            "number": 1,
+            "size": 2,
+            "sort": {
+                "orderBy": [
+                    {
+                        "property": "title",
+                        "direction": "ASC",
+                        "ignoreCase": false
+                    }
+                ]
+            }
+        } */
+        bookRepository.findAll(pageable)
+    }
+
+    @Post("/list")
+    Page<Book> list(Integer offset, Integer max, String sortField, String sortDirection) {
+        Sort.Order.Direction direction = Sort.Order.Direction.ASC
+        if (sortDirection.equalsIgnoreCase("desc")) {
+            direction = Sort.Order.Direction.DESC
+        }
+        Sort.Order order = new Sort.Order(sortField, direction, false)
+        Sort sort = Sort.of([order])
+        Pageable pageable = Pageable.from(offset, max, sort)
+        bookRepository.findAll(pageable)
+        //bookRepository.findAll().asList()
     }
 
     @Put("/")
-    Book save(String title, int pages, String name, Double longitude, Double lattitude) {
+    Book save(String title, int pages, String name, Double longitude, Double latitude) {
         Book book = bookRepository.findByTitle(title)?.get()
 
         if (!book) {
@@ -50,10 +81,10 @@ class BookController {
         // Save Publisher
         String bookInfo = JsonOutput.toJson(book).toString()
 
-        Point point = (Point)wktToGeometry("POINT (${lattitude} ${longitude})")
+        Point point = (Point)wktToGeometry("POINT (${latitude} ${longitude})")
 
         publisherRepository.save(new Publisher(name: name, book: bookInfo,
-                                               longitude: longitude, lattitude: lattitude, location: point))
+                                               longitude: longitude, latitude: latitude, location: point))
 
         return book
     }
@@ -70,9 +101,16 @@ class BookController {
                 "location": publisher.location.toString()]
     }
 
-    @Get("/publisher/search/{searchText}")
-    List searchPublisher(String searchText) {
-        publisherRepository.searchPublishers(searchText)
+    @Post("/publisher/search/}")
+    List searchPublisher(String searchText, @Nullable String[] fields,
+                         Integer offset, Integer max, String sortField, String sortDirection) {
+        publisherRepository.searchPublishers(searchText, fields, offset, max, sortField, sortDirection)
+    }
+
+    @Post("/publisher/geosearch/")
+    List searchPublisher(Double longitude, Double latitude, Integer radius,
+                         Integer offset, Integer max, String sortField, String sortDirection) {
+        publisherRepository.searchWithinRadius(longitude, latitude, radius, offset, max, sortField, sortDirection)
     }
 
     @Post("/publisher/withinRadius")

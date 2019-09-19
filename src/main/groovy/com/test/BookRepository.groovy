@@ -3,6 +3,8 @@ package com.test
 import groovy.transform.CompileStatic
 import io.micronaut.configuration.hibernate.jpa.scope.CurrentSession
 import io.micronaut.data.annotation.Repository
+import io.micronaut.data.model.Page
+import io.micronaut.data.model.Pageable
 import io.micronaut.data.repository.PageableRepository
 import io.micronaut.spring.tx.annotation.Transactional
 

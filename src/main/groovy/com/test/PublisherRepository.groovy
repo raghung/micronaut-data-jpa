@@ -6,11 +6,15 @@ import io.micronaut.configuration.hibernate.jpa.scope.CurrentSession
 import io.micronaut.data.annotation.Repository
 import io.micronaut.data.repository.CrudRepository
 import io.micronaut.spring.tx.annotation.Transactional
+import org.apache.lucene.search.Sort
 import org.hibernate.query.Query
+import org.hibernate.search.FullTextSession
 import org.hibernate.search.jpa.FullTextEntityManager
 import org.hibernate.search.jpa.FullTextQuery
 import org.hibernate.search.jpa.Search
 import org.hibernate.search.query.dsl.QueryBuilder
+import org.hibernate.search.query.dsl.Unit
+import org.hibernate.search.query.dsl.sort.SortFieldContext
 import org.locationtech.jts.geom.Coordinate
 import org.locationtech.jts.geom.Geometry
 import org.locationtech.jts.util.GeometricShapeFactory
@@ -53,16 +57,42 @@ abstract class PublisherRepository implements CrudRepository<Publisher, Long> {
     }
 
     @Transactional
-    List searchPublishers(String searchText, @Nullable String[] fields) {
+    List searchPublishers(String searchText, @Nullable String[] fields,
+                          Integer offset, Integer max, String sortField, String sortDirection) {
         if (!fields || fields.size() == 0) {
             fields = ["name"]
         }
 
         getPublishersDetail(
-            getFullTextLuceneQuery(
-                getSearchQueryBuilder().keyword().onFields(fields).matching(searchText).createQuery()
-            ).getResultList()
+                // Hibernate DSL query
+                getFullTextQuery(
+                        // Lucene Query
+                        getSearchQueryBuilder().keyword().onFields(fields)
+                                                         .matching(searchText).createQuery()
+                ).setFirstResult(offset)
+                 .setMaxResults(max)
+                 .setSort(createSort(sortField, sortDirection))
+                 .getResultList()
         )
+    }
+
+    @Transactional
+    List searchWithinRadius(Double longitude, Double latitude, Integer radius,
+                            Integer offset, Integer max, String sortField, String sortDirection) {
+
+        getPublishersDetail(
+                // Hibernate DSL query
+                getFullTextQuery(
+                        // Lucene Query
+                        getSearchQueryBuilder().spatial().within(radius, Unit.KM)
+                                                         .ofLatitude(latitude)
+                                                         .andLongitude(longitude).createQuery()
+                ).setFirstResult(offset)
+                 .setMaxResults(max)
+                 .setSort(createSort(sortField, sortDirection))
+                 .getResultList()
+        )
+        // fulltextQuery.getResultSize() gives total count
     }
 
     private List getPublishersDetail(List<Publisher> lstPublisher) {
@@ -86,7 +116,20 @@ abstract class PublisherRepository implements CrudRepository<Publisher, Long> {
         return shapeFactory.createCircle()
     }
 
-    private FullTextQuery getFullTextLuceneQuery(org.apache.lucene.search.Query luceneQuery) {
+    private Sort createSort(String sortField, String sortDirection) {
+        // Creating Sort Object
+        SortFieldContext context =  getSearchQueryBuilder().sort().byField(sortField)
+        Sort sort
+        if (sortDirection.equalsIgnoreCase("desc")) {
+            sort = context.desc().createSort()
+        } else {
+            sort = context.asc().createSort()
+        }
+
+        return sort
+    }
+
+    private FullTextQuery getFullTextQuery(org.apache.lucene.search.Query luceneQuery) {
         FullTextEntityManager fullTextEntityManager = Search.getFullTextEntityManager(entityManager)
         fullTextEntityManager.createFullTextQuery(luceneQuery, Publisher)
     }
