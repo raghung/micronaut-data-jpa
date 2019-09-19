@@ -1,5 +1,6 @@
 package com.test
 
+import groovy.transform.CompileStatic
 import io.micronaut.configuration.hibernate.jpa.scope.CurrentSession
 import io.micronaut.data.annotation.Repository
 import io.micronaut.data.repository.PageableRepository
@@ -8,6 +9,7 @@ import io.micronaut.spring.tx.annotation.Transactional
 import javax.persistence.EntityManager
 import javax.persistence.PersistenceContext
 
+@CompileStatic
 @Repository
 abstract class BookRepository implements PageableRepository<Book, Long>{
 
@@ -26,4 +28,13 @@ abstract class BookRepository implements PageableRepository<Book, Long>{
     }
 
     Optional<Book> findByTitle(String title) {}
+
+//    @Transactional
+//    Book save(Book book) {
+//        entityManager.persist(book)
+//        return book
+//    }
+
+    List<Book> listOrderByTitleDesc() {}
+
 }

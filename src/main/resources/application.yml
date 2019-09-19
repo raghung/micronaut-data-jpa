@@ -1,6 +1,11 @@
 micronaut:
   application:
     name: micronaut-data-jpa
+  # Reloading the App
+  io:
+    watch:
+      paths: src/main
+      restart: true
 ---
 datasources:
   default:
