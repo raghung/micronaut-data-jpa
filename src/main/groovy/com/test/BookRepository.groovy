@@ -31,11 +31,13 @@ abstract class BookRepository implements PageableRepository<Book, Long>{
 
     Optional<Book> findByTitle(String title) {}
 
-//    @Transactional
-//    Book save(Book book) {
-//        entityManager.persist(book)
-//        return book
-//    }
+    @Transactional
+    Book batchProcess(Book book) {
+        entityManager.persist(book)
+        entityManager.flush()
+        entityManager.clear()
+        return book
+    }
 
     List<Book> listOrderByTitleDesc() {}
 

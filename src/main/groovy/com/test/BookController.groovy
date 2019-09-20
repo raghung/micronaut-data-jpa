@@ -1,5 +1,9 @@
 package com.test
 
+import com.opencsv.CSVReader
+import com.opencsv.bean.ColumnPositionMappingStrategy
+import com.opencsv.bean.CsvToBean
+import com.opencsv.bean.HeaderColumnNameMappingStrategy
 import groovy.json.JsonOutput
 import groovy.json.JsonSlurper
 import groovy.transform.CompileStatic
@@ -7,11 +11,17 @@ import groovy.util.logging.Slf4j
 import io.micronaut.data.model.Page
 import io.micronaut.data.model.Pageable
 import io.micronaut.data.model.Sort
+import io.micronaut.http.HttpResponse
+import io.micronaut.http.HttpStatus
+import io.micronaut.http.MediaType
+import io.micronaut.http.MutableHttpResponse
 import io.micronaut.http.annotation.Body
 import io.micronaut.http.annotation.Controller
 import io.micronaut.http.annotation.Get
 import io.micronaut.http.annotation.Post
 import io.micronaut.http.annotation.Put
+import io.micronaut.http.multipart.StreamingFileUpload
+import io.reactivex.Single
 import org.locationtech.jts.geom.Coordinate
 import org.locationtech.jts.geom.Geometry
 import org.locationtech.jts.geom.Point
@@ -118,8 +128,53 @@ class BookController {
         publisherRepository.withinRadius(latitude, longitude, radius)
     }
 
+    @Post(value = "/bulkupload", consumes = MediaType.MULTIPART_FORM_DATA)
+    Single<MutableHttpResponse> bulkUpload(StreamingFileUpload file) {
+        // Check for file content type
+//        if (file.contentType.get() != 'text/csv') {
+//            throw new Exception("Invalid file format")
+//        }
+        File tempFile = File.createTempFile(file.getFilename(), "temp")
+        org.reactivestreams.Publisher<Boolean> uploadPublisher = file.transferTo(tempFile)//.transferTo(tempFile)
+        return Single.fromPublisher(uploadPublisher)
+                     .map({success ->
+            if (success) {
+                HttpResponse.ok(batchProcessBookCSV(tempFile))
+            } else {
+                HttpResponse.status(HttpStatus.CONFLICT).body("Upload Failed")
+            }
+        })
+    }
+
     private Geometry wktToGeometry(String wellKnownText) throws ParseException {
         new WKTReader().read(wellKnownText)
+    }
+
+    private Map batchProcessBookCSV(File csvFile) {
+        CSVReader reader = CSVReader.newInstance(new FileReader(csvFile))
+        HeaderColumnNameMappingStrategy<Book> beanStrategy = new HeaderColumnNameMappingStrategy<Book>()
+        beanStrategy.setType(Book)
+
+        CsvToBean<Book> csvToBean = new CsvToBean<Book>()
+        csvToBean.setMappingStrategy(beanStrategy)
+        csvToBean.setCsvReader(reader)
+        int successRows = 0
+        int errorRows = 0
+        csvToBean.parse()?.each { book ->
+            try {
+                bookRepository.save(book)
+                successRows += 1
+            } catch(Exception e) {
+                log.info(e.message + " - " + book.toString())
+                errorRows += 1
+            }
+
+        }
+
+        return ["total": errorRows + successRows,
+                "success": successRows,
+                "Error": errorRows]
+
     }
 
 }

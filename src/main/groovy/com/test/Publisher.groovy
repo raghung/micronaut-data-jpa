@@ -34,7 +34,7 @@ class Publisher {
     @GeneratedValue
     Long id
 
-    @Field(termVector = TermVector.YES)
+    @Field(termVector = TermVector.NO)
     @SortableField  // For hibernate-search
     String name
 
