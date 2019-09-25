@@ -77,9 +77,25 @@ abstract class PublisherRepository implements CrudRepository<Publisher, Long> {
     }
 
     @Transactional
+    List searchWithFilter(String searchText, Double longitude, Double latitude, Integer radius,
+                          Integer offset, Integer max, String sortField, String sortDirection) {
+        FullTextQuery fullTextQuery = getFullTextQuery(
+                // Lucene Query
+                getSearchQueryBuilder().spatial().within(radius, Unit.KM)
+                        .ofLatitude(latitude)
+                        .andLongitude(longitude).createQuery()
+        ).setFirstResult(offset).setMaxResults(max)//.setSort(createSort(sortField, sortDirection))
+
+        if (searchText) {
+            fullTextQuery.enableFullTextFilter("name").setParameter("name", searchText)
+        }
+
+        getPublishersDetail(fullTextQuery.getResultList())
+    }
+
+    @Transactional
     List searchWithinRadius(Double longitude, Double latitude, Integer radius,
                             Integer offset, Integer max, String sortField, String sortDirection) {
-
         getPublishersDetail(
                 // Hibernate DSL query
                 getFullTextQuery(

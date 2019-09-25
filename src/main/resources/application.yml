@@ -1,6 +1,8 @@
 micronaut:
   application:
     name: micronaut-data-jpa
+  server:
+    port: 8090
   # Reloading the App
   io:
     watch:

@@ -7,6 +7,7 @@ import io.micronaut.data.model.Page
 import io.micronaut.data.model.Pageable
 import io.micronaut.data.repository.PageableRepository
 import io.micronaut.spring.tx.annotation.Transactional
+import org.hibernate.SessionFactory
 
 import javax.persistence.EntityManager
 import javax.persistence.PersistenceContext
@@ -18,8 +19,13 @@ abstract class BookRepository implements PageableRepository<Book, Long>{
     @PersistenceContext
     EntityManager entityManager
 
+    SessionFactory sessionFactory
+
     BookRepository(@CurrentSession EntityManager entityManager) {
         this.entityManager = entityManager
+//        sessionFactory = new org.hibernate.cfg.Configuration().configure().buildSessionFactory()
+//        sessionFactory.openSession()
+//        sessionFactory.close()
     }
 
     @Transactional
@@ -29,8 +35,6 @@ abstract class BookRepository implements PageableRepository<Book, Long>{
                     .getResultList()
     }
 
-    Optional<Book> findByTitle(String title) {}
-
     @Transactional
     Book batchProcess(Book book) {
         entityManager.persist(book)
@@ -38,7 +42,5 @@ abstract class BookRepository implements PageableRepository<Book, Long>{
         entityManager.clear()
         return book
     }
-
-    List<Book> listOrderByTitleDesc() {}
 
 }

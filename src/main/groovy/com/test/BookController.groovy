@@ -31,6 +31,7 @@ import org.locationtech.jts.util.GeometricShapeFactory
 
 import javax.annotation.Nullable
 import javax.inject.Inject
+import java.time.LocalDate
 
 @CompileStatic
 @Slf4j
@@ -41,11 +42,15 @@ class BookController {
     BookRepository bookRepository
 
     @Inject
+    InterfaceBookRepository iBookRepository
+
+    @Inject
     PublisherRepository publisherRepository
 
     @Get("/{title}")
-    List<Book> books(String title) {
-        bookRepository.findAllByTitle(title)
+    Book bookByTitle(String title) {
+        //bookRepository.findAllByTitle(title)
+        iBookRepository.findByTitle(title)?.get()
     }
 
     @Post("/pageable")
@@ -75,26 +80,33 @@ class BookController {
         Sort.Order order = new Sort.Order(sortField, direction, false)
         Sort sort = Sort.of([order])
         Pageable pageable = Pageable.from(offset, max, sort)
-        bookRepository.findAll(pageable)
+        Page<Book> pbook = bookRepository.findAll(pageable)
+        List lstBooks = []
+        pbook.content?.each { book ->
+            lstBooks += book.display()
+        }
+
+        return pbook
         //bookRepository.findAll().asList()
     }
 
     @Put("/")
     Book save(String title, int pages, String name, Double longitude, Double latitude) {
-        Book book = bookRepository.findByTitle(title)?.get()
+        Book book = iBookRepository.findByTitle(title)?.get()
 
         if (!book) {
-            book = new Book(title: title, pages: pages)
+            LocalDate localDate = LocalDate.of(2019, 9, 24)
+            book = new Book(title: title, pages: pages, publishDate: localDate)
             bookRepository.save(book)
         }
 
         // Save Publisher
-        String bookInfo = JsonOutput.toJson(book).toString()
-
-        Point point = (Point)wktToGeometry("POINT (${latitude} ${longitude})")
-
-        publisherRepository.save(new Publisher(name: name, book: bookInfo,
-                                               longitude: longitude, latitude: latitude, location: point))
+//        String bookInfo = JsonOutput.toJson(book).toString()
+//
+//        Point point = (Point)wktToGeometry("POINT (${latitude} ${longitude})")
+//
+//        publisherRepository.save(new Publisher(name: name, book: bookInfo,
+//                                               longitude: longitude, latitude: latitude, location: point))
 
         return book
     }
@@ -111,7 +123,7 @@ class BookController {
                 "location": publisher.location.toString()]
     }
 
-    @Post("/publisher/search/}")
+    @Post("/publisher/search/")
     List searchPublisher(String searchText, @Nullable String[] fields,
                          Integer offset, Integer max, String sortField, String sortDirection) {
         publisherRepository.searchPublishers(searchText, fields, offset, max, sortField, sortDirection)
@@ -126,6 +138,13 @@ class BookController {
     @Post("/publisher/withinRadius")
     List withinRadius(Double latitude, Double longitude, Double radius) {
         publisherRepository.withinRadius(latitude, longitude, radius)
+    }
+
+    @Post("/publisher/withFilter")
+    List withinRadius(String searchText, Double longitude, Double latitude, Integer radius,
+                      Integer offset, Integer max, String sortField, String sortDirection) {
+        publisherRepository.searchWithFilter(searchText, longitude, latitude, radius,
+                                                                        offset, max, sortField, sortDirection)
     }
 
     @Post(value = "/bulkupload", consumes = MediaType.MULTIPART_FORM_DATA)
